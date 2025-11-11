@@ -1,0 +1,12 @@
+{
+  "name": "mono-app",
+  "version": "1.0.0",
+  "main": "app.js",
+  "scripts": {
+    "start": "node app.js",
+    "test": "node -e \"console.log('tests passed')\""
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}

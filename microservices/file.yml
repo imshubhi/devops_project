@@ -1,0 +1,19 @@
+version: '3.8'
+services:
+  user-service:
+    build: ./user-service
+    ports:
+      - "4000:4000"
+
+  product-service:
+    build: ./product-service
+    ports:
+      - "5000:5000"
+
+  gateway:
+    build: ./gateway
+    ports:
+      - "3001:3000"
+    depends_on:
+      - user-service
+      - product-service

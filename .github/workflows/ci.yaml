@@ -22,7 +22,7 @@ jobs:
           node-version: '18'
 
       - name: Install deps
-        run: npm ci
+        run: npm -i
 
       - name: Unit tests (fake)
         run: npm test

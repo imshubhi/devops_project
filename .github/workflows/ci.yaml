@@ -1,0 +1,98 @@
+name: Monolith vs Microservices CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  monolith:
+    name: Monolith Build & Simulated Deploy
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: monolith
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      - name: Install deps
+        run: npm ci
+
+      - name: Unit tests (fake)
+        run: npm test
+
+      - name: Build Docker image (time it)
+        id: build
+        run: |
+          start=$(date +%s)
+          docker build -t mono-app:ci .
+          end=$(date +%s)
+          echo "seconds=$((end-start))" >> $GITHUB_OUTPUT
+
+      - name: Simulated deploy (time it)
+        id: deploy
+        run: |
+          start=$(date +%s)
+          echo "Simulating monolith deploy..."
+          sleep 3
+          end=$(date +%s)
+          echo "seconds=$((end-start))" >> $GITHUB_OUTPUT
+
+      - name: Summary
+        run: |
+          echo "### Monolith Results" >> $GITHUB_STEP_SUMMARY
+          echo "- Build time: **${{ steps.build.outputs.seconds }}s**" >> $GITHUB_STEP_SUMMARY
+          echo "- Deploy time (simulated): **${{ steps.deploy.outputs.seconds }}s**" >> $GITHUB_STEP_SUMMARY
+
+  micro:
+    name: Microservices Build & Simulated Deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build user-service (time it)
+        id: user
+        run: |
+          start=$(date +%s)
+          docker build -t user-service:ci microservices/user-service
+          end=$(date +%s)
+          echo "seconds=$((end-start))" >> $GITHUB_OUTPUT
+
+      - name: Build product-service (time it)
+        id: product
+        run: |
+          start=$(date +%s)
+          docker build -t product-service:ci microservices/product-service
+          end=$(date +%s)
+          echo "seconds=$((end-start))" >> $GITHUB_OUTPUT
+
+      - name: Build gateway (time it)
+        id: gateway
+        run: |
+          start=$(date +%s)
+          docker build -t gateway:ci microservices/gateway
+          end=$(date +%s)
+          echo "seconds=$((end-start))" >> $GITHUB_OUTPUT
+
+      - name: Simulated deploy (compose up) (time it)
+        id: deploy
+        run: |
+          start=$(date +%s)
+          echo "Simulating microservices deploy..."
+          sleep 5
+          end=$(date +%s)
+          echo "seconds=$((end-start))" >> $GITHUB_OUTPUT
+
+      - name: Summary
+        run: |
+          echo "### Microservices Results" >> $GITHUB_STEP_SUMMARY
+          echo "- user-service build: **${{ steps.user.outputs.seconds }}s**" >> $GITHUB_STEP_SUMMARY
+          echo "- product-service build: **${{ steps.product.outputs.seconds }}s**" >> $GITHUB_STEP_SUMMARY
+          echo "- gateway build: **${{ steps.gateway.outputs.seconds }}s**" >> $GITHUB_STEP_SUMMARY
+          echo "- Deploy time (simulated): **${{ steps.deploy.outputs.seconds }}s**" >> $GITHUB_STEP_SUMMARY

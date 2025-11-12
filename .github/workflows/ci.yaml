@@ -22,6 +22,7 @@ jobs:
         with:
           node-version: '18'
           cache: 'npm'
+          cache-dependency-path: monolith/package-lock.json
 
       - name: Cache npm registry metadata
         uses: actions/cache@v4
@@ -31,7 +32,7 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-node-
 
-      - name: Install deps (strict: npm ci; fallback to npm install)
+      - name: Install deps (strict npm ci; fallback to npm install)
         id: install-deps
         run: |
           set -e
@@ -133,3 +134,4 @@ jobs:
           echo "- user-service build: **${{ steps.user.outputs.seconds }}s**" >> $GITHUB_STEP_SUMMARY
           echo "- product-service build: **${{ steps.product.outputs.seconds }}s**" >> $GITHUB_STEP_SUMMARY
           echo "- gateway build: **${{ steps.gateway.outputs.seconds }}s**" >> $GITHUB_STEP_SUMMARY
+          echo "- Deploy time (simulated): **${{ steps.deploy.outputs.seconds }}s**" >> $GITHUB_STEP_SUMMARY

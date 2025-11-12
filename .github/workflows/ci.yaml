@@ -14,15 +14,52 @@ jobs:
       run:
         working-directory: monolith
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
-      - name: Setup Node
+      - name: Setup Node (with cache)
         uses: actions/setup-node@v4
         with:
           node-version: '18'
+          cache: 'npm'
 
-      - name: Install deps
-        run: npm -i
+      - name: Cache npm registry metadata
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('monolith/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-node-
+
+      - name: Install deps (strict: npm ci; fallback to npm install)
+        id: install-deps
+        run: |
+          set -e
+          echo "Working dir: $(pwd)"
+          echo "Node $(node -v) / npm $(npm -v)"
+          echo "Attempting strict install with 'npm ci' (requires up-to-date package-lock.json)..."
+          if npm ci --prefer-offline --no-audit --no-fund; then
+            echo "npm ci succeeded."
+          else
+            echo "================================================================"
+            echo "npm ci FAILED — likely package-lock.json is out-of-sync with package.json"
+            echo "Diagnostics: show differences and list top-level deps"
+            echo "----------------------------------------------------------------"
+            if [ -f package.json ]; then
+              echo "package.json top-level deps:"
+              node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json')); console.log(JSON.stringify({dependencies:p.dependencies, devDependencies:p.devDependencies}, null, 2));" || true
+            else
+              echo "No package.json found in monolith directory!"
+            fi
+            echo "----------------------------------------------------------------"
+            echo "Local fix (run locally in repo root):"
+            echo "  cd monolith && rm -rf node_modules && npm install && git add package-lock.json && git commit -m 'chore: update package-lock.json' && git push"
+            echo "----------------------------------------------------------------"
+            echo "Falling back to 'npm install' so the job can continue (lockfile may be updated)."
+            npm install --no-audit --no-fund
+            echo "NOTE: package-lock.json may have been changed. Commit the updated lockfile to fix CI permanently."
+            echo "================================================================"
+          fi
 
       - name: Unit tests (fake)
         run: npm test
@@ -54,7 +91,8 @@ jobs:
     name: Microservices Build & Simulated Deploy
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Build user-service (time it)
         id: user
@@ -95,4 +133,3 @@ jobs:
           echo "- user-service build: **${{ steps.user.outputs.seconds }}s**" >> $GITHUB_STEP_SUMMARY
           echo "- product-service build: **${{ steps.product.outputs.seconds }}s**" >> $GITHUB_STEP_SUMMARY
           echo "- gateway build: **${{ steps.gateway.outputs.seconds }}s**" >> $GITHUB_STEP_SUMMARY
-          echo "- Deploy time (simulated): **${{ steps.deploy.outputs.seconds }}s**" >> $GITHUB_STEP_SUMMARY
